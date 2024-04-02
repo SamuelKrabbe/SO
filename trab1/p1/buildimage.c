@@ -20,7 +20,28 @@
 /* Reads in an executable file in ELF format*/
 Elf32_Phdr * read_exec_file(FILE **execfile, char *filename, Elf32_Ehdr **ehdr)
 { 
-	return NULL;
+	*execfile = fopen(filename, "rb");
+    if (*execfile == NULL) {
+        perror("Error opening file");
+        return NULL;
+    }
+
+    // Read ELF header
+    fread(*ehdr, 1, sizeof(Elf32_Ehdr), *execfile);
+
+    // Allocate memory for program header table
+    Elf32_Phdr *phdr_table = (Elf32_Phdr *)malloc((*ehdr)->e_phentsize * (*ehdr)->e_phnum);
+    if (phdr_table == NULL) {
+        perror("Memory allocation failed");
+        fclose(*execfile);
+        return NULL;
+    }
+
+    // Read program header table
+    fseek(*execfile, (*ehdr)->e_phoff, SEEK_SET);
+    fread(phdr_table, (*ehdr)->e_phentsize, (*ehdr)->e_phnum, *execfile);
+
+    return phdr_table;
 }
 
 /* Writes the bootblock to the image file */
@@ -65,12 +86,23 @@ void extended_opt(Elf32_Phdr *bph, int k_phnum, Elf32_Phdr *kph, int num_sec)
 /* MAIN */
 int main(int argc, char **argv)
 {
-	FILE *kernelfile, *bootfile,*imagefile;  // file pointers for bootblock,kernel and image
-	Elf32_Ehdr *boot_header   = malloc(sizeof(Elf32_Ehdr)); // bootblock ELF header
-	Elf32_Ehdr *kernel_header = malloc(sizeof(Elf32_Ehdr)); // kernel ELF header
-	
-	Elf32_Phdr *boot_program_header;   // bootblock ELF program header
-	Elf32_Phdr *kernel_program_header; // kernel ELF program header
+	FILE *kernelfile, *bootfile, *imagefile; // file pointers for bootblock, kernel, and image
+    Elf32_Ehdr *boot_header = malloc(sizeof(Elf32_Ehdr)); // bootblock ELF header
+    Elf32_Ehdr *kernel_header = malloc(sizeof(Elf32_Ehdr)); // kernel ELF header
+
+    // Read bootblock program header
+    Elf32_Phdr *boot_program_header = read_exec_file(&bootfile, "bootblock.o", &boot_header);
+    if (boot_program_header == NULL) {
+        fprintf(stderr, "Error reading bootblock ELF file\n");
+        return 1;
+    }
+
+    // Read kernel program header
+    Elf32_Phdr *kernel_program_header = read_exec_file(&kernelfile, "kernel.s", &kernel_header);
+    if (kernel_program_header == NULL) {
+        fprintf(stderr, "Error reading kernel ELF file\n");
+        return 1;
+    }
 
 	/* build image file */
 
@@ -88,7 +120,17 @@ int main(int argc, char **argv)
 	if(!strncmp(argv[1], "--extended", 11)) {
 		/* print info */
 	}
+
+	// Clean up
+    free(boot_header);
+    free(kernel_header);
+    free(boot_program_header);
+    free(kernel_program_header);
+    fclose(bootfile);
+    fclose(kernelfile);
+    fclose(imagefile);
   
+  	printf("ELF files read successfully!\n");
 	return 0;
 } // ends main()
 

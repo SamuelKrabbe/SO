@@ -47,16 +47,8 @@ Elf32_Phdr * read_exec_file(FILE **execfile, char *filename, Elf32_Ehdr **ehdr)
 }
 
 /* Writes the bootblock to the image file */
-void write_bootblock(FILE **imagefile,FILE *bootfile,Elf32_Ehdr *boot_header, Elf32_Phdr *boot_phdr)
+void write_bootblock(FILE **imagefile,FILE *bootfile, Elf32_Phdr *boot_phdr)
 {
-	if (*imagefile == NULL) {
-        *imagefile = fopen("image", "wb");
-        if (*imagefile == NULL) {
-            perror("Error opening image file");
-            exit(EXIT_FAILURE);
-        }
-    }
-	
     // Allocate buffer for bootblock contents
     char *bootblock_buffer = (char *)malloc(boot_phdr->p_filesz);
     if (bootblock_buffer == NULL) {
@@ -133,7 +125,14 @@ int main(int argc, char **argv)
     }
 
 	/* build image file */
-	write_bootblock(&imagefile, bootfile, boot_header, boot_program_header);
+	if (imagefile == NULL) {
+        imagefile = fopen("image", "wb");
+        if (imagefile == NULL) {
+            perror("Error opening image file");
+            exit(EXIT_FAILURE);
+        }
+    }
+	write_bootblock(&imagefile, bootfile, boot_program_header);
 
 	/* read executable bootblock file */  
 

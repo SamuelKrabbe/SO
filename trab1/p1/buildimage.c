@@ -17,7 +17,7 @@
 #define BOOTLOADER_SIG_OFFSET 0x1fe /* offset for boot loader signature */
 // more defines...
 
-/* Reads in an executable file in ELF format*/
+// Reads in an executable file in ELF format
 Elf32_Phdr * read_exec_file(FILE **execfile, char *filename, Elf32_Ehdr **ehdr)
 { 
 	*execfile = fopen(filename, "rb");
@@ -41,12 +41,40 @@ Elf32_Phdr * read_exec_file(FILE **execfile, char *filename, Elf32_Ehdr **ehdr)
     fseek(*execfile, (*ehdr)->e_phoff, SEEK_SET);
     fread(phdr_table, (*ehdr)->e_phentsize, (*ehdr)->e_phnum, *execfile);
 
+	printf("%s read successfully!\n", filename);
+
     return phdr_table;
 }
 
 /* Writes the bootblock to the image file */
 void write_bootblock(FILE **imagefile,FILE *bootfile,Elf32_Ehdr *boot_header, Elf32_Phdr *boot_phdr)
 {
+	if (*imagefile == NULL) {
+        *imagefile = fopen("image", "wb");
+        if (*imagefile == NULL) {
+            perror("Error opening image file");
+            exit(EXIT_FAILURE);
+        }
+    }
+	
+    // Allocate buffer for bootblock contents
+    char *bootblock_buffer = (char *)malloc(boot_phdr->p_filesz);
+    if (bootblock_buffer == NULL) {
+        perror("Memory allocation failed");
+        exit(EXIT_FAILURE);
+    }
+	
+    // Read bootblock contents from bootfile
+    fseek(bootfile, boot_phdr->p_offset, SEEK_SET);
+    fread(bootblock_buffer, 1, boot_phdr->p_filesz, bootfile);
+	
+    // Write bootblock contents to image file
+    fwrite(bootblock_buffer, 1, boot_phdr->p_filesz, *imagefile);
+	
+    // Free allocated memory and close file
+    free(bootblock_buffer);
+
+	printf("Image file written successfully!\n");
 }
 
 /* Writes the kernel to the image file */
@@ -105,6 +133,7 @@ int main(int argc, char **argv)
     }
 
 	/* build image file */
+	write_bootblock(&imagefile, bootfile, boot_header, boot_program_header);
 
 	/* read executable bootblock file */  
 
@@ -117,10 +146,10 @@ int main(int argc, char **argv)
 	/* tell the bootloader how many sectors to read to load the kernel */
 
 	/* check for  --extended option */
-	if(!strncmp(argv[1], "--extended", 11)) {
-		/* print info */
-	}
-
+	// if(!strncmp(argv[1], "--extended", 11)) {
+	// 	/* print info */
+	// }
+	
 	// Clean up
     free(boot_header);
     free(kernel_header);
@@ -128,9 +157,8 @@ int main(int argc, char **argv)
     free(kernel_program_header);
     fclose(bootfile);
     fclose(kernelfile);
-    fclose(imagefile);
+	//fclose(imagefile);
   
-  	printf("ELF files read successfully!\n");
 	return 0;
 } // ends main()
 

@@ -42,7 +42,7 @@ LDOPTS = -nostartfiles -nostdlib -melf_i386
 all: run
 
 run: 
-	@$(CC) -std=c99 ./buildimage.c -o buildimage
+	@$(CC) -std=c99 ./buildimage.c -o buildimage -Wall
 	@./buildimage
 
 kernel: kernel.o

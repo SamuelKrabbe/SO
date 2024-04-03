@@ -17,6 +17,14 @@
 #define BOOTLOADER_SIG_OFFSET 0x1fe /* offset for boot loader signature */
 // more defines...
 
+void print_shdr_info(Elf32_Shdr shdr) {
+    printf("Section name: %d\n", (unsigned int)shdr.sh_name); // Replace "example_section_name" with the actual section name
+    printf("Section type: %u\n", shdr.sh_type);
+    printf("Section address: 0x%x\n", shdr.sh_addr);
+    printf("Section offset: %lu\n", (unsigned long)shdr.sh_offset);
+    // Print other fields as needed
+}
+
 // Function to read ELF header from file
 Elf32_Ehdr* read_elf_header(FILE** execfile, char *filename) {
 
@@ -94,77 +102,15 @@ void * read_exec_file(FILE **execfile, char *filename, Elf32_Ehdr *ehdr) {
     return header;
 }
 
-// // Reads in an executable file in ELF format and return it's sections headers
-// Elf32_Shdr * read_section_header_table(FILE **execfile, char *filename, Elf32_Ehdr *ehdr)
-// {
-//     *execfile = fopen(filename, "rb");
-//     if (*execfile == NULL) {
-//         perror("Error opening file");
-//         return NULL;
-//     }
-
-//     // Check if the file has a section header table
-//     if (ehdr->e_shnum == 0) {
-//         fprintf(stderr, "Error reading section header table of %s ELF file\n", filename);
-//         printf("The ELF file does not have a section header table.\n");
-//         fclose(*execfile);
-//         return NULL;
-//     }
-
-//     // Allocate memory for section header table
-//     Elf32_Shdr *shdr_table = (Elf32_Shdr *)malloc(ehdr->e_shentsize * ehdr->e_shnum);
-//     if (shdr_table == NULL) {
-//         perror("Memory allocation failed");
-//         fclose(*execfile);
-//         return NULL;
-//     }
-
-//     // Read section header table
-//     fseek(*execfile, ehdr->e_shoff, SEEK_SET);
-//     fread(shdr_table, ehdr->e_shentsize, ehdr->e_shnum, *execfile);
-
-//     printf("%s's section header table read successfully!\n", filename);
-
-//     return shdr_table;
-// }
-
-// // Reads in an executable file in ELF format and return it's program header
-// Elf32_Phdr * read_program_header_table(FILE **execfile, char *filename, Elf32_Ehdr *ehdr)
-// { 
-// 	*execfile = fopen(filename, "rb");
-//     if (*execfile == NULL) {
-//         perror("Error opening file");
-//         return NULL;
-//     }
-
-//     // Check if the file has a program header
-//     if (ehdr->e_phnum == 0) {
-//         fprintf(stderr, "Error reading program heaer of %s ELF file\n", filename);
-//         printf("The ELF file does not have a program header.\n");
-//         fclose(*execfile);
-//         return NULL;
-//     }
-
-//     // Allocate memory for program header table
-//     Elf32_Phdr *phdr_table = (Elf32_Phdr *)malloc(ehdr->e_phentsize * ehdr->e_phnum);
-//     if (phdr_table == NULL) {
-//         perror("Memory allocation failed");
-//         fclose(*execfile);
-//         return NULL;
-//     }
-
-//     // Read program header table
-//     fseek(*execfile, ehdr->e_phoff, SEEK_SET);
-//     fread(phdr_table, ehdr->e_phentsize, ehdr->e_phnum, *execfile);
-
-// 	printf("%s's program header table read successfully!\n", filename);
-
-//     return phdr_table;
-// }
-
 /* Writes the bootblock to the image file */
 void write_bootblock(FILE **imagefile, FILE *bootfile, Elf32_Shdr *boot_shdr_table)
 {
+    // Check if file pointers are valid
+    if (imagefile == NULL || *imagefile == NULL || bootfile == NULL || boot_shdr_table == NULL) {
+        perror("Invalid file pointers");
+        return;
+    }
+
     unsigned char *section_buffer;
     int useful_sections[] = {1, 2, 3, 13, 14, 15}; // Indices of useful sections
 
@@ -190,6 +136,7 @@ void write_bootblock(FILE **imagefile, FILE *bootfile, Elf32_Shdr *boot_shdr_tab
         // Free buffer memory
         free(section_buffer);
     }
+    printf("bootblock.o written successfully into imagefile!\n");
 }
 
 /* Writes the kernel to the image file */
@@ -253,8 +200,15 @@ int main(int argc, char **argv)
 	/* read executable bootblock file */  
     boot_shdr_table = read_exec_file(&bootfile, "bootblock.o", boot_ehdr);
 
+    // Print information about each section header in the table
+    for (int i = 0; i < 16; i++) {
+        printf("\n");
+        printf("Section header #%d:\n", i);
+        print_shdr_info(boot_shdr_table[i]);
+    }
+
 	/* write bootblock */  
-	// write_bootblock(&imagefile, bootfile, boot_program_header);
+	write_bootblock(&imagefile, bootfile, boot_shdr_table);
 
 	/* read executable kernel file */
     kernel_program_header = read_exec_file(&kernelfile, "kernel.s", kernel_ehdr);
@@ -276,7 +230,7 @@ int main(int argc, char **argv)
     free(kernel_program_header);
     fclose(bootfile);
     fclose(kernelfile);
-	// fclose(imagefile);
+	fclose(imagefile);
   
 	return 0;
 } // ends main()

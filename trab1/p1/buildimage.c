@@ -1,4 +1,4 @@
-/* Author(s): <Your name(s) here>
+/* Author(s): Samuel de Oliveira Krabbe
  * Creates operating system image suitable for placement on a boot disk
 */
 /* TODO: Comment on the status of your submission. Largely unimplemented */

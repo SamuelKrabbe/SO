@@ -1,7 +1,7 @@
-/* Author(s): <Your name(s) here>
+/* Author(s): Samuel de Oliveira Krabbe
  * Creates operating system image suitable for placement on a boot disk
 */
-/* TODO: Comment on the status of your submission. Largely unimplemented */
+
 #include <assert.h>
 #include <elf.h>
 #include <errno.h>
@@ -11,229 +11,295 @@
 #include <string.h>
 
 #define IMAGE_FILE "./image"
+#define BOOT_FILENAME "bootblock"
+#define KERNEL_FILENAME "kernel"
 #define ARGS "[--extended] <bootblock> <executable-file> ..."
 
 #define SECTOR_SIZE 512       /* floppy sector size in bytes */
 #define BOOTLOADER_SIG_OFFSET 0x1fe /* offset for boot loader signature */
-// more defines...
 
-void print_shdr_info(Elf32_Shdr shdr) {
-    printf("Section name: %d\n", (unsigned int)shdr.sh_name); // Replace "example_section_name" with the actual section name
-    printf("Section type: %u\n", shdr.sh_type);
-    printf("Section address: 0x%x\n", shdr.sh_addr);
-    printf("Section offset: %lu\n", (unsigned long)shdr.sh_offset);
-    // Print other fields as needed
-}
 
-// Function to read ELF header from file
-Elf32_Ehdr* read_elf_header(FILE** execfile, char *filename) {
+// Define a struct to hold the package values
+typedef struct {
+    FILE *imagefile;
+    FILE *bootfile;
+    FILE *kernelfile;
+    Elf32_Ehdr *boot_elf_header;
+    Elf32_Phdr *boot_program_header;
+    Elf32_Ehdr *kernel_elf_header;
+    Elf32_Phdr *kernel_program_header;
+    int num_bootblock_sectors;
+    int num_kernel_sectors;
+} Package;
 
-    *execfile = fopen(filename, "rb");
-    if (*execfile == NULL) {
-        perror("Error opening file");
-        return NULL;
-    }
+
+// Function to read ELF header from bootblock
+void read_bootblock_ehdr(Package **my_package) {
 
     // Allocate memory for the ELF header
-    Elf32_Ehdr* elf_header = (Elf32_Ehdr*)malloc(sizeof(Elf32_Ehdr));
+    (*my_package)->boot_elf_header = (Elf32_Ehdr*)malloc(sizeof(Elf32_Ehdr));
 
-    if (elf_header == NULL) {
-        perror("Memory allocation failed");
+    if ((*my_package)->boot_elf_header == NULL) {
+        perror("Memory allocation of boot_elf_header failed");
         return NULL;
     }
 
     // Read the ELF header from the file
-    if (fread(elf_header, sizeof(Elf32_Ehdr), 1, *execfile) != 1) {
-        fprintf(stderr, "Error reading ELF header from %s ELF file\n", filename);
-        free(elf_header);
+    if (fread((*my_package)->boot_elf_header, sizeof(Elf32_Ehdr), 1, (*my_package)->bootfile) != 1) {
+        fprintf(stderr, "Error reading ELF header from %s ELF file\n", BOOT_FILENAME);
+        free((*my_package)->boot_elf_header);
         return NULL;
     }
 
-    printf("%s's ELF heaedr read successfully!\n", filename);
-
-    return elf_header;
+    printf("%s's ELF header read successfully!\n", BOOT_FILENAME);
 }
 
-void * read_exec_file(FILE **execfile, char *filename, Elf32_Ehdr *ehdr) {
-    void* header = NULL;
+// Function to read ELF header from kernel
+void read_kernel_ehdr(Package **my_package) {
 
-    *execfile = fopen(filename, "rb");
-    if (*execfile == NULL) {
-        perror("Error opening file");
+    // Allocate memory for the ELF header
+    (*my_package)->kernel_elf_header = (Elf32_Ehdr*)malloc(sizeof(Elf32_Ehdr));
+
+    if ((*my_package)->kernel_elf_header == NULL) {
+        perror("Memory allocation of kernel_elf_header failed");
         return NULL;
     }
 
-    // Check if the file has a section header table
-    if (ehdr->e_phnum == 0) {
-        printf("The %s ELF file does not have a program header table.\n", filename);
-        printf("Reading %s's section header table instead.\n", filename);
-
-        // Allocate memory for section header table
-        Elf32_Shdr *shdr_table = (Elf32_Shdr *)malloc(ehdr->e_shentsize * ehdr->e_shnum);
-        if (shdr_table == NULL) {
-            perror("Memory allocation failed");
-            fclose(*execfile);
-            return NULL;
-        }
-
-        // Read section header table
-        fseek(*execfile, ehdr->e_shoff, SEEK_SET);
-        fread(shdr_table, ehdr->e_shentsize, ehdr->e_shnum, *execfile);
-
-        printf("%s's section header table read successfully!\n", filename);
-        header = shdr_table;
+    // Read the ELF header from the file
+    if (fread((*my_package)->kernel_elf_header, sizeof(Elf32_Ehdr), 1, (*my_package)->kernelfile) != 1) {
+        fprintf(stderr, "Error reading ELF header from %s ELF file\n", KERNEL_FILENAME);
+        free((*my_package)->kernel_elf_header);
+        return NULL;
     }
-    else {
-        // Allocate memory for program header table
-        Elf32_Phdr *phdr_table = (Elf32_Phdr *)malloc(ehdr->e_phentsize * ehdr->e_phnum);
-        if (phdr_table == NULL) {
-            perror("Memory allocation failed");
-            fclose(*execfile);
-            return NULL;
-        }
 
-        // Read program header table
-        fseek(*execfile, ehdr->e_phoff, SEEK_SET);
-        fread(phdr_table, ehdr->e_phentsize, ehdr->e_phnum, *execfile);
+    printf("%s's ELF header read successfully!\n", KERNEL_FILENAME);
+}
 
-        printf("%s's program header table read successfully!\n", filename);
-        header = phdr_table;
+void read_bootblock_phdr(Package **my_package) {
+
+    // Allocate memory for the ELF header
+    (*my_package)->boot_program_header = (Elf32_Phdr*)malloc(sizeof(Elf32_Phdr));
+
+    if ((*my_package)->boot_program_header == NULL) {
+        perror("Memory allocation of boot_program_header failed");
+        return NULL;
     }
-    return header;
+
+    // Read program header table
+    fseek((*my_package)->bootfile, (*my_package)->boot_elf_header->e_phoff, SEEK_SET);
+    fread((*my_package)->boot_program_header, (*my_package)->boot_elf_header->e_phentsize, (*my_package)->boot_elf_header->e_phnum, (*my_package)->bootfile);
+
+    printf("%s's program header table read successfully!\n", BOOT_FILENAME);
+}
+
+void read_kernel_phdr(Package **my_package) {
+
+    // Allocate memory for the ELF header
+    (*my_package)->kernel_program_header = (Elf32_Phdr*)malloc(sizeof(Elf32_Phdr));
+
+    if ((*my_package)->kernel_program_header == NULL) {
+        perror("Memory allocation of kernel_program_header failed");
+        return NULL;
+    }
+
+    // Read program header table
+    fseek((*my_package)->kernelfile, (*my_package)->kernel_elf_header->e_phoff, SEEK_SET);
+    fread((*my_package)->kernel_program_header, (*my_package)->kernel_elf_header->e_phentsize, (*my_package)->kernel_elf_header->e_phnum, (*my_package)->kernelfile);
+
+    printf("%s's program header table read successfully!\n", KERNEL_FILENAME);
 }
 
 /* Writes the bootblock to the image file */
-void write_bootblock(FILE **imagefile, FILE *bootfile, Elf32_Shdr *boot_shdr_table)
+void write_bootblock(Package **my_package)
 {
-    // Check if file pointers are valid
-    if (imagefile == NULL || *imagefile == NULL || bootfile == NULL || boot_shdr_table == NULL) {
-        perror("Invalid file pointers");
+    // Allocate memory for bootblock
+    unsigned char *bootblock = (unsigned char *)malloc((*my_package)->boot_program_header->p_filesz);
+    if (bootblock == NULL) {
+        fprintf(stderr, "Memory allocation failed\n");
         return;
     }
 
-    unsigned char *section_buffer;
-    int useful_sections[] = {1, 2, 3, 13, 14, 15}; // Indices of useful sections
+    // Read the bootblock from the bootfile
+    fseek((*my_package)->bootfile, (*my_package)->boot_program_header->p_offset, SEEK_SET);
+    fread(bootblock, 1, (*my_package)->boot_program_header->p_filesz, (*my_package)->bootfile);
 
-    // Iterate through useful section indices
-    for (int i = 0; i < sizeof(useful_sections) / sizeof(useful_sections[0]); i++) {
-        int idx = useful_sections[i];
+    // Write the bootblock to the image file
+    fwrite(bootblock, 1, (*my_package)->boot_program_header->p_filesz, (*my_package)->imagefile);
 
-        // Allocate buffer for section contents
-        section_buffer = (unsigned char *)malloc(boot_shdr_table[idx].sh_size);
-        if (section_buffer == NULL) {
-            perror("Memory allocation failed");
-            fclose(*imagefile);
-            return;
-        }
+    // Free allocated memory
+    free(bootblock);
 
-        // Read section contents from ELF file
-        fseek(bootfile, boot_shdr_table[idx].sh_offset, SEEK_SET);
-        fread(section_buffer, 1, boot_shdr_table[idx].sh_size, bootfile);
-
-        // Write section contents to image file
-        fwrite(section_buffer, 1, boot_shdr_table[idx].sh_size, *imagefile);
-
-        // Free buffer memory
-        free(section_buffer);
-    }
-    printf("bootblock.o written successfully into imagefile!\n");
+    printf("%s written successfully into image!\n", BOOT_FILENAME);
 }
 
 /* Writes the kernel to the image file */
-void write_kernel(FILE **imagefile,FILE *kernelfile, Elf32_Phdr *kernel_phdr)
+void write_kernel(Package **my_package)
 { 
+    // Allocate memory for kernel
+    unsigned char *kernel = (unsigned char *)malloc((*my_package)->kernel_program_header->p_filesz);
+    if (kernel == NULL) {
+        fprintf(stderr, "Memory allocation failed\n");
+        return;
+    }
+
+    // Read the kernel from the kernelfile
+    fseek((*my_package)->kernelfile, (*my_package)->kernel_program_header->p_offset, SEEK_SET);
+    fread(kernel, 1, (*my_package)->kernel_program_header->p_filesz, (*my_package)->kernelfile);
+
+    // Write the kernel to the image file
+    fwrite(kernel, 1, (*my_package)->kernel_program_header->p_filesz, (*my_package)->imagefile);
+
+    // Free allocated memory
+    free(kernel);
+
+    printf("%s written successfully into image!\n", KERNEL_FILENAME);
 }
 
 /* Counts the number of sectors in the kernel */
-int count_kernel_sectors(Elf32_Ehdr *kernel_header, Elf32_Phdr *kernel_phdr)
-{   
-    return 0;
+void count_kernel_sectors(Package **my_package) {   
+    // Calculate the size of the kernel in bytes
+    unsigned int kernel_size = (*my_package)->kernel_program_header->p_filesz;
+
+    // Calculate the number of sectors required to store the kernel
+    (*my_package)->num_kernel_sectors = (kernel_size + SECTOR_SIZE - 1) / SECTOR_SIZE;
+}
+
+void count_bootblock_sectors(Package **my_package) {
+    // Calculate the size of the bootblock in bytes
+    unsigned int bootblock_size = (*my_package)->bootblock_program_header->p_filesz;
+
+    // Calculate the number of sectors required to store the bootblock
+    (*my_package)->num_bootblock_sectors = (bootblock_size + SECTOR_SIZE - 1) / SECTOR_SIZE;
 }
 
 /* Records the number of sectors in the kernel */
-void record_kernel_sectors(FILE **imagefile,Elf32_Ehdr *kernel_header, Elf32_Phdr *kernel_phdr, int num_sec)
-{    
+void record_kernel_sectors(Package **my_package) {
+    // Write the number of sectors to the image file
+    fwrite((*my_package)->num_kernel_sectors, sizeof(int), 1, (*my_package)->imagefile);
 }
 
-
-/* Prints segment information for --extended option */
-void extended_opt(Elf32_Phdr *bph, int k_phnum, Elf32_Phdr *kph, int num_sec)
-{
-
-	/* print number of disk sectors used by the image */
-
-  
-	/* bootblock segment info */
- 
-
-	/* print kernel segment info */
-  
-
-	/* print kernel size in sectors */
-}
-// more helper functions...
-
-/* MAIN */
-int main(int argc, char **argv)
-{
-	FILE *kernelfile, *bootfile, *imagefile; // file pointers for bootblock, kernel, and image
-    Elf32_Ehdr *boot_ehdr; // bootblock ELF header
-    Elf32_Ehdr *kernel_ehdr; // kernel ELF header
-    Elf32_Shdr *boot_shdr_table; // bootblock section header table
-    Elf32_Phdr *kernel_program_header; // kernel program header
-
-    // Read bootblock ELF header
-    boot_ehdr = read_elf_header(&bootfile, "bootblock.o");
-
-    // Read kernel ELF header
-    kernel_ehdr = read_elf_header(&kernelfile, "kernel.s");
-
-	/* build image file */
-	if (imagefile == NULL) {
-        imagefile = fopen("image.o", "wb");
-        if (imagefile == NULL) {
+// Build image file
+void build_image(Package **my_package) {
+    if ((*my_package)->imagefile == NULL) {
+        (*my_package)->imagefile = fopen("image", "wb");
+        if ((*my_package)->imagefile == NULL) {
             perror("Error opening image file");
             exit(EXIT_FAILURE);
         }
     }
 
-	/* read executable bootblock file */  
-    boot_shdr_table = read_exec_file(&bootfile, "bootblock.o", boot_ehdr);
+    // Write bootblock to the image file
+    write_bootblock(my_package);
 
-    // Print information about each section header in the table
-    for (int i = 0; i < 16; i++) {
-        printf("\n");
-        printf("Section header #%d:\n", i);
-        print_shdr_info(boot_shdr_table[i]);
+    // Write kernel to the image file
+    write_kernel(my_package);
+
+    // Record number of kernel sectors in the image file
+    record_kernel_sectors(my_package);
+}
+
+
+/* Prints segment information for --extended option */
+void extended_opt(Package *my_package)
+{
+    // Calculate total size of the image file in bytes
+    fseek(imagefile, 0, SEEK_END);
+    long total_size = ftell(imagefile);
+
+    // Calculate total number of sectors used by the image
+    int total_sectors = (total_size + 511) / 512;
+
+    // Print number of disk sectors used by the image
+    printf("Number of disk sectors used by the image: %d\n", total_sectors);
+
+    // Bootblock segment info
+    printf("Bootblock segment info:\n");
+    for (int i = 0; i < boot_ehdr->e_phnum; ++i) {
+        printf("  Segment %d:\n", i + 1);
+        printf("  Type: %d\n", boot_phdr[i].p_type);
+        printf("  Offset: 0x%x\n", boot_phdr[i].p_offset);
+        printf("  Size: %d bytes\n", boot_phdr[i].p_filesz);
+        printf("  Virtual Address: 0x%x\n", boot_phdr[i].p_vaddr);
+        printf("  Physical Address: 0x%x\n", boot_phdr[i].p_paddr);
     }
 
-	/* write bootblock */  
-	write_bootblock(&imagefile, bootfile, boot_shdr_table);
+    // Print kernel segment info
+    printf("Kernel segment info:\n");
+    for (int i = 0; i < kernel_ehdr->e_phnum; ++i) {
+        printf("  Segment %d:\n", i + 1);
+        printf("    Type: %d\n", kernel_phdr[i].p_type);
+        printf("    Offset: 0x%x\n", kernel_phdr[i].p_offset);
+        printf("    Size: %d bytes\n", kernel_phdr[i].p_filesz);
+        printf("    Virtual Address: 0x%x\n", kernel_phdr[i].p_vaddr);
+        printf("    Physical Address: 0x%x\n", kernel_phdr[i].p_paddr);
+    }
 
-	/* read executable kernel file */
-    kernel_program_header = read_exec_file(&kernelfile, "kernel.s", kernel_ehdr);
+    // Calculate the position of the number of kernel sectors within the file
+    long kernel_sectors_pos = total_size - sizeof(int);
 
-	/* write kernel segments to image */
+    // Seek to the position of the number of kernel sectors within the file
+    fseek(imagefile, kernel_sectors_pos, SEEK_SET);
 
-	/* tell the bootloader how many sectors to read to load the kernel */
+    // Read the number of kernel sectors from the file
+    int num_kernel_sectors;
+    fread(&num_kernel_sectors, sizeof(int), 1, imagefile);
 
-	/* check for  --extended option */
-	// if(!strncmp(argv[1], "--extended", 11)) {
-	// 	/* print info */
-	// }
+    // Print number of kernel sectors
+    printf("Kernel size in sectors: %d\n", num_kernel_sectors);
+}
+
+/* MAIN */
+int main(int argc, char **argv)
+{
+    if (argc < 2) {
+        printf("Usage: %s\n", ARGS);
+        printf("\n");
+    }
+
+    // Package structure that holds all the values I will need
+    Package *my_package;
+
+    (*my_package)->bootfile = fopen(BOOT_FILENAME, "rb");
+    if ((*my_package)->bootfile == NULL) {
+        perror("Error opening bootfile");
+        return NULL;
+    }
+
+    (*my_package)->kernelfile = fopen(KERNEL_FILENAME, "rb");
+    if ((*my_package)->kernelfile == NULL) {
+        perror("Error opening kernelfile");
+        return NULL;
+    }
+
+    // Read ELF files' ELF headers
+    my_package->boot_elf_header = read_bootblock_ehdr(&my_package);
+    my_package->kernel_elf_header = read_kernel_ehdr(&my_package);
+
+	/* read ELF files' program headers */  
+    my_package->boot_program_header = read_bootblock_phdr(&my_package);
+    my_package->kernel_program_header = read_kernel_phdr(&my_package);
+
+    /* Counts the number of sectors in the ELF files */
+    count_bootblock_sectors(&my_package);
+    count_kernel_sectors(&my_package);
+
+	/* build image file */
+    build_image(&my_package);
+
+	/* check for --extended option */
+	if(!strncmp(argv[1], "--extended", 11)) {
+		extended_opt(my_package);
+	}
 	
 	// Clean up
     printf("freeing pointers...\n");
-    free(boot_ehdr);
-    free(kernel_ehdr);
-    free(boot_shdr_table);
-    free(kernel_program_header);
-    fclose(bootfile);
-    fclose(kernelfile);
-	fclose(imagefile);
+    free(my_package->boot_elf_header);
+    free(my_package->kernel_elf_header);
+    free(my_package->boot_program_header);
+    free(my_package->kernel_program_header);
+    fclose(my_package->bootfile);
+    fclose(my_package->kernelfile);
+	fclose(my_package->imagefile);
   
 	return 0;
-} // ends main()
-
-
-
+}

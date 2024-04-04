@@ -223,18 +223,8 @@ void extended_opt(Package *my_package)
         printf("\n");
     }
 
-    // Calculate the position of the number of kernel sectors within the file
-    long kernel_sectors_pos = total_size - sizeof(int);
-
-    // Seek to the position of the number of kernel sectors within the file
-    fseek(my_package->imagefile, kernel_sectors_pos, SEEK_SET);
-
-    // Read the number of kernel sectors from the file
-    int num_kernel_sectors;
-    fread(&num_kernel_sectors, sizeof(int), 1, my_package->imagefile);
-
     // Print number of kernel sectors
-    printf("Kernel size in sectors: %d\n", num_kernel_sectors);
+    printf("Kernel size in sectors: %d\n", my_package->num_kernel_sectors);
 }
 
 /* MAIN */

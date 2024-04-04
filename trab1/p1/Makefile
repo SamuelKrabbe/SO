@@ -38,7 +38,7 @@ LDOPTS = -nostartfiles -nostdlib -melf_i386
 
 # Makefile targets
 
-all: bootblock buildimage kernel image
+all: bootblock buildimage kernel samuelimage
 
 run: 
 	@$(CC) -std=c99 ./buildimage.c -o buildimage -Wall

@@ -49,8 +49,6 @@ void read_bootblock_ehdr(Package **my_package) {
         fprintf(stderr, "Error reading ELF header from %s ELF file\n", BOOT_FILENAME);
         free((*my_package)->boot_elf_header);
     }
-
-    printf("%s's ELF header read successfully!\n", BOOT_FILENAME);
 }
 
 // Function to read ELF header from kernel
@@ -69,8 +67,6 @@ void read_kernel_ehdr(Package **my_package) {
         fprintf(stderr, "Error reading ELF header from %s ELF file\n", KERNEL_FILENAME);
         free((*my_package)->kernel_elf_header);
     }
-
-    printf("%s's ELF header read successfully!\n", KERNEL_FILENAME);
 }
 
 void read_bootblock_phdr(Package **my_package) {
@@ -86,8 +82,6 @@ void read_bootblock_phdr(Package **my_package) {
     // Read program header table
     fseek((*my_package)->bootfile, (*my_package)->boot_elf_header->e_phoff, SEEK_SET);
     fread((*my_package)->boot_program_header, (*my_package)->boot_elf_header->e_phentsize, (*my_package)->boot_elf_header->e_phnum, (*my_package)->bootfile);
-
-    printf("%s's program header table read successfully!\n", BOOT_FILENAME);
 }
 
 void read_kernel_phdr(Package **my_package) {
@@ -103,8 +97,6 @@ void read_kernel_phdr(Package **my_package) {
     // Read program header table
     fseek((*my_package)->kernelfile, (*my_package)->kernel_elf_header->e_phoff, SEEK_SET);
     fread((*my_package)->kernel_program_header, (*my_package)->kernel_elf_header->e_phentsize, (*my_package)->kernel_elf_header->e_phnum, (*my_package)->kernelfile);
-
-    printf("%s's program header table read successfully!\n", KERNEL_FILENAME);
 }
 
 /* Writes the bootblock to the image file */
@@ -126,8 +118,6 @@ void write_bootblock(Package **my_package)
 
     // Free allocated memory
     free(bootblock);
-
-    printf("%s written successfully into image!\n", BOOT_FILENAME);
 }
 
 /* Writes the kernel to the image file */
@@ -149,8 +139,6 @@ void write_kernel(Package **my_package)
 
     // Free allocated memory
     free(kernel);
-
-    printf("%s written successfully into image!\n", KERNEL_FILENAME);
 }
 
 /* Counts the number of sectors in the kernel */
@@ -209,6 +197,7 @@ void extended_opt(Package *my_package)
 
     // Print number of disk sectors used by the image
     printf("Number of disk sectors used by the image: %d\n", total_sectors);
+    printf("\n");
 
     // Bootblock segment info
     printf("Bootblock segment info:\n");
@@ -219,6 +208,7 @@ void extended_opt(Package *my_package)
         printf("    Size: %d bytes\n", my_package->boot_program_header[i].p_filesz);
         printf("    Virtual Address: 0x%x\n", my_package->boot_program_header[i].p_vaddr);
         printf("    Physical Address: 0x%x\n", my_package->boot_program_header[i].p_paddr);
+        printf("\n");
     }
 
     // Print kernel segment info
@@ -230,6 +220,7 @@ void extended_opt(Package *my_package)
         printf("    Size: %d bytes\n", my_package->kernel_program_header[i].p_filesz);
         printf("    Virtual Address: 0x%x\n", my_package->kernel_program_header[i].p_vaddr);
         printf("    Physical Address: 0x%x\n", my_package->kernel_program_header[i].p_paddr);
+        printf("\n");
     }
 
     // Calculate the position of the number of kernel sectors within the file
@@ -289,7 +280,9 @@ int main(int argc, char **argv)
             extended_opt(my_package);
         } else {
             // Handle case where the argument is not "--extended"
+            printf("\n");
             printf("Unknown option. Usage: ./program --extended\n");
+            printf("\n");
         }
     } else {
         // Handle case where no command line argument is provided
@@ -298,8 +291,7 @@ int main(int argc, char **argv)
         printf("\n");
     }
 	
-	// Clean up
-    printf("freeing pointers...\n");
+	// Cleaning up
     free(my_package->boot_elf_header);
     free(my_package->kernel_elf_header);
     free(my_package->boot_program_header);
@@ -307,7 +299,6 @@ int main(int argc, char **argv)
     fclose(my_package->bootfile);
     fclose(my_package->kernelfile);
 	fclose(my_package->imagefile);
-    printf("pointers freed successfully!\n");
   
 	return 0;
 }

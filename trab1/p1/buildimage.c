@@ -41,6 +41,7 @@ void read_bootblock_ehdr(Package **my_package) {
 
     if ((*my_package)->boot_elf_header == NULL) {
         perror("Memory allocation of boot_elf_header failed");
+        exit(EXIT_FAILURE);
     }
 
     // Read the ELF header from the file
@@ -60,6 +61,7 @@ void read_kernel_ehdr(Package **my_package) {
 
     if ((*my_package)->kernel_elf_header == NULL) {
         perror("Memory allocation of kernel_elf_header failed");
+        exit(EXIT_FAILURE);
     }
 
     // Read the ELF header from the file
@@ -78,6 +80,7 @@ void read_bootblock_phdr(Package **my_package) {
 
     if ((*my_package)->boot_program_header == NULL) {
         perror("Memory allocation of boot_program_header failed");
+        exit(EXIT_FAILURE);
     }
 
     // Read program header table
@@ -94,6 +97,7 @@ void read_kernel_phdr(Package **my_package) {
 
     if ((*my_package)->kernel_program_header == NULL) {
         perror("Memory allocation of kernel_program_header failed");
+        exit(EXIT_FAILURE);
     }
 
     // Read program header table
@@ -110,6 +114,7 @@ void write_bootblock(Package **my_package)
     unsigned char *bootblock = (unsigned char *)malloc((*my_package)->boot_program_header->p_filesz);
     if (bootblock == NULL) {
         fprintf(stderr, "Memory allocation failed\n");
+        exit(EXIT_FAILURE);
     }
 
     // Read the bootblock from the bootfile
@@ -132,6 +137,7 @@ void write_kernel(Package **my_package)
     unsigned char *kernel = (unsigned char *)malloc((*my_package)->kernel_program_header->p_filesz);
     if (kernel == NULL) {
         fprintf(stderr, "Memory allocation failed\n");
+        exit(EXIT_FAILURE);
     }
 
     // Read the kernel from the kernelfile
@@ -243,24 +249,23 @@ void extended_opt(Package *my_package)
 /* MAIN */
 int main(int argc, char **argv)
 {
-    if (argc < 2) {
-        printf("Usage: %s\n", ARGS);
-        printf("\n");
-    }
-
     // Package structure that holds all the values I will need
-    Package *my_package;
+    Package *my_package = malloc(sizeof(Package));
+    if (my_package == NULL) {
+        perror("Error allocating memory for my_package");
+        exit(EXIT_FAILURE);
+    }
 
     my_package->bootfile = fopen(BOOT_FILENAME, "rb");
     if (my_package->bootfile == NULL) {
-        perror("Error opening bootfile");
-        return 1;
+        printf("Error opening %s\n", BOOT_FILENAME);
+        exit(EXIT_FAILURE);
     }
 
     my_package->kernelfile = fopen(KERNEL_FILENAME, "rb");
     if (my_package->kernelfile == NULL) {
-        perror("Error opening kernelfile");
-        return 1;
+        printf("Error opening %s\n", KERNEL_FILENAME);
+        exit(EXIT_FAILURE);
     }
 
     // Read ELF files' ELF headers
@@ -279,9 +284,19 @@ int main(int argc, char **argv)
     build_image(&my_package);
 
 	/* check for --extended option */
-	if(!strncmp(argv[1], "--extended", 11)) {
-		extended_opt(my_package);
-	}
+    if (argc > 1) {
+        if (!strncmp(argv[1], "--extended", 11)) {
+            extended_opt(my_package);
+        } else {
+            // Handle case where the argument is not "--extended"
+            printf("Unknown option. Usage: ./program --extended\n");
+        }
+    } else {
+        // Handle case where no command line argument is provided
+        printf("\n");
+        printf("Usage: %s\n", ARGS);
+        printf("\n");
+    }
 	
 	// Clean up
     printf("freeing pointers...\n");
@@ -292,6 +307,7 @@ int main(int argc, char **argv)
     fclose(my_package->bootfile);
     fclose(my_package->kernelfile);
 	fclose(my_package->imagefile);
+    printf("pointers freed successfully!\n");
   
 	return 0;
 }

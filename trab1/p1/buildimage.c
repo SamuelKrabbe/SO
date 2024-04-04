@@ -41,14 +41,12 @@ void read_bootblock_ehdr(Package **my_package) {
 
     if ((*my_package)->boot_elf_header == NULL) {
         perror("Memory allocation of boot_elf_header failed");
-        return NULL;
     }
 
     // Read the ELF header from the file
     if (fread((*my_package)->boot_elf_header, sizeof(Elf32_Ehdr), 1, (*my_package)->bootfile) != 1) {
         fprintf(stderr, "Error reading ELF header from %s ELF file\n", BOOT_FILENAME);
         free((*my_package)->boot_elf_header);
-        return NULL;
     }
 
     printf("%s's ELF header read successfully!\n", BOOT_FILENAME);
@@ -62,14 +60,12 @@ void read_kernel_ehdr(Package **my_package) {
 
     if ((*my_package)->kernel_elf_header == NULL) {
         perror("Memory allocation of kernel_elf_header failed");
-        return NULL;
     }
 
     // Read the ELF header from the file
     if (fread((*my_package)->kernel_elf_header, sizeof(Elf32_Ehdr), 1, (*my_package)->kernelfile) != 1) {
         fprintf(stderr, "Error reading ELF header from %s ELF file\n", KERNEL_FILENAME);
         free((*my_package)->kernel_elf_header);
-        return NULL;
     }
 
     printf("%s's ELF header read successfully!\n", KERNEL_FILENAME);
@@ -82,7 +78,6 @@ void read_bootblock_phdr(Package **my_package) {
 
     if ((*my_package)->boot_program_header == NULL) {
         perror("Memory allocation of boot_program_header failed");
-        return NULL;
     }
 
     // Read program header table
@@ -99,7 +94,6 @@ void read_kernel_phdr(Package **my_package) {
 
     if ((*my_package)->kernel_program_header == NULL) {
         perror("Memory allocation of kernel_program_header failed");
-        return NULL;
     }
 
     // Read program header table
@@ -116,7 +110,6 @@ void write_bootblock(Package **my_package)
     unsigned char *bootblock = (unsigned char *)malloc((*my_package)->boot_program_header->p_filesz);
     if (bootblock == NULL) {
         fprintf(stderr, "Memory allocation failed\n");
-        return;
     }
 
     // Read the bootblock from the bootfile
@@ -139,7 +132,6 @@ void write_kernel(Package **my_package)
     unsigned char *kernel = (unsigned char *)malloc((*my_package)->kernel_program_header->p_filesz);
     if (kernel == NULL) {
         fprintf(stderr, "Memory allocation failed\n");
-        return;
     }
 
     // Read the kernel from the kernelfile
@@ -166,7 +158,7 @@ void count_kernel_sectors(Package **my_package) {
 
 void count_bootblock_sectors(Package **my_package) {
     // Calculate the size of the bootblock in bytes
-    unsigned int bootblock_size = (*my_package)->bootblock_program_header->p_filesz;
+    unsigned int bootblock_size = (*my_package)->boot_program_header->p_filesz;
 
     // Calculate the number of sectors required to store the bootblock
     (*my_package)->num_bootblock_sectors = (bootblock_size + SECTOR_SIZE - 1) / SECTOR_SIZE;
@@ -175,7 +167,7 @@ void count_bootblock_sectors(Package **my_package) {
 /* Records the number of sectors in the kernel */
 void record_kernel_sectors(Package **my_package) {
     // Write the number of sectors to the image file
-    fwrite((*my_package)->num_kernel_sectors, sizeof(int), 1, (*my_package)->imagefile);
+    fwrite((&(*my_package)->num_kernel_sectors), sizeof(int), 1, (*my_package)->imagefile);
 }
 
 // Build image file
@@ -203,8 +195,8 @@ void build_image(Package **my_package) {
 void extended_opt(Package *my_package)
 {
     // Calculate total size of the image file in bytes
-    fseek(imagefile, 0, SEEK_END);
-    long total_size = ftell(imagefile);
+    fseek(my_package->imagefile, 0, SEEK_END);
+    long total_size = ftell(my_package->imagefile);
 
     // Calculate total number of sectors used by the image
     int total_sectors = (total_size + 511) / 512;
@@ -214,35 +206,35 @@ void extended_opt(Package *my_package)
 
     // Bootblock segment info
     printf("Bootblock segment info:\n");
-    for (int i = 0; i < boot_ehdr->e_phnum; ++i) {
+    for (int i = 0; i < my_package->boot_elf_header->e_phnum; ++i) {
         printf("  Segment %d:\n", i + 1);
-        printf("  Type: %d\n", boot_phdr[i].p_type);
-        printf("  Offset: 0x%x\n", boot_phdr[i].p_offset);
-        printf("  Size: %d bytes\n", boot_phdr[i].p_filesz);
-        printf("  Virtual Address: 0x%x\n", boot_phdr[i].p_vaddr);
-        printf("  Physical Address: 0x%x\n", boot_phdr[i].p_paddr);
+        printf("    Type: %d\n", my_package->boot_program_header[i].p_type);
+        printf("    Offset: 0x%x\n", my_package->boot_program_header[i].p_offset);
+        printf("    Size: %d bytes\n", my_package->boot_program_header[i].p_filesz);
+        printf("    Virtual Address: 0x%x\n", my_package->boot_program_header[i].p_vaddr);
+        printf("    Physical Address: 0x%x\n", my_package->boot_program_header[i].p_paddr);
     }
 
     // Print kernel segment info
     printf("Kernel segment info:\n");
-    for (int i = 0; i < kernel_ehdr->e_phnum; ++i) {
+    for (int i = 0; i < my_package->kernel_elf_header->e_phnum; ++i) {
         printf("  Segment %d:\n", i + 1);
-        printf("    Type: %d\n", kernel_phdr[i].p_type);
-        printf("    Offset: 0x%x\n", kernel_phdr[i].p_offset);
-        printf("    Size: %d bytes\n", kernel_phdr[i].p_filesz);
-        printf("    Virtual Address: 0x%x\n", kernel_phdr[i].p_vaddr);
-        printf("    Physical Address: 0x%x\n", kernel_phdr[i].p_paddr);
+        printf("    Type: %d\n", my_package->kernel_program_header[i].p_type);
+        printf("    Offset: 0x%x\n", my_package->kernel_program_header[i].p_offset);
+        printf("    Size: %d bytes\n", my_package->kernel_program_header[i].p_filesz);
+        printf("    Virtual Address: 0x%x\n", my_package->kernel_program_header[i].p_vaddr);
+        printf("    Physical Address: 0x%x\n", my_package->kernel_program_header[i].p_paddr);
     }
 
     // Calculate the position of the number of kernel sectors within the file
     long kernel_sectors_pos = total_size - sizeof(int);
 
     // Seek to the position of the number of kernel sectors within the file
-    fseek(imagefile, kernel_sectors_pos, SEEK_SET);
+    fseek(my_package->imagefile, kernel_sectors_pos, SEEK_SET);
 
     // Read the number of kernel sectors from the file
     int num_kernel_sectors;
-    fread(&num_kernel_sectors, sizeof(int), 1, imagefile);
+    fread(&num_kernel_sectors, sizeof(int), 1, my_package->imagefile);
 
     // Print number of kernel sectors
     printf("Kernel size in sectors: %d\n", num_kernel_sectors);
@@ -259,25 +251,25 @@ int main(int argc, char **argv)
     // Package structure that holds all the values I will need
     Package *my_package;
 
-    (*my_package)->bootfile = fopen(BOOT_FILENAME, "rb");
-    if ((*my_package)->bootfile == NULL) {
+    my_package->bootfile = fopen(BOOT_FILENAME, "rb");
+    if (my_package->bootfile == NULL) {
         perror("Error opening bootfile");
-        return NULL;
+        return 1;
     }
 
-    (*my_package)->kernelfile = fopen(KERNEL_FILENAME, "rb");
-    if ((*my_package)->kernelfile == NULL) {
+    my_package->kernelfile = fopen(KERNEL_FILENAME, "rb");
+    if (my_package->kernelfile == NULL) {
         perror("Error opening kernelfile");
-        return NULL;
+        return 1;
     }
 
     // Read ELF files' ELF headers
-    my_package->boot_elf_header = read_bootblock_ehdr(&my_package);
-    my_package->kernel_elf_header = read_kernel_ehdr(&my_package);
+    read_bootblock_ehdr(&my_package);
+    read_kernel_ehdr(&my_package);
 
 	/* read ELF files' program headers */  
-    my_package->boot_program_header = read_bootblock_phdr(&my_package);
-    my_package->kernel_program_header = read_kernel_phdr(&my_package);
+    read_bootblock_phdr(&my_package);
+    read_kernel_phdr(&my_package);
 
     /* Counts the number of sectors in the ELF files */
     count_bootblock_sectors(&my_package);

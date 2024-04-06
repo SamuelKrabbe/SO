@@ -188,12 +188,14 @@ void build_image(Package **my_package) {
 /* Prints segment information for --extended option */
 void extended_opt(Package *my_package)
 {
+    int i, j;
+    
     // Calculate total size of the image file in bytes
     fseek(my_package->imagefile, 0, SEEK_END);
     long total_size = ftell(my_package->imagefile);
 
     // Calculate total number of sectors used by the image
-    int total_sectors = (total_size + 511) / 512;
+    int total_sectors = (total_size + SECTOR_SIZE - 1) / SECTOR_SIZE;
 
     // Print number of disk sectors used by the image
     printf("Number of disk sectors used by the image: %d\n", total_sectors);
@@ -201,25 +203,34 @@ void extended_opt(Package *my_package)
 
     // Bootblock segment info
     printf("Bootblock segment info:\n");
-    for (int i = 0; i < my_package->boot_elf_header->e_phnum; ++i) {
+    for (i = 0; i < my_package->boot_elf_header->e_phnum; ++i) {
         printf("  Segment %d:\n", i + 1);
         printf("    Type: %d\n", my_package->boot_program_header[i].p_type);
         printf("    Offset: 0x%x\n", my_package->boot_program_header[i].p_offset);
-        printf("    Size: %d bytes\n", my_package->boot_program_header[i].p_filesz);
         printf("    Virtual Address: 0x%x\n", my_package->boot_program_header[i].p_vaddr);
         printf("    Physical Address: 0x%x\n", my_package->boot_program_header[i].p_paddr);
+        printf("    Size in file: %d bytes\n", my_package->boot_program_header[i].p_filesz);
+        printf("    Size in memory: %d bytes\n", my_package->boot_program_header[i].p_memsz);
+        printf("    Flags: 0x%x\n", my_package->boot_program_header[i].p_flags);
+        printf("    Alignment: %d bytes\n", my_package->boot_program_header[i].p_align);
         printf("\n");
     }
 
+    // Print number of bootblock sectors
+    printf("bootblock size in sectors: %d\n", my_package->num_bootblock_sectors);
+
     // Print kernel segment info
     printf("Kernel segment info:\n");
-    for (int i = 0; i < my_package->kernel_elf_header->e_phnum; ++i) {
-        printf("  Segment %d:\n", i + 1);
-        printf("    Type: %d\n", my_package->kernel_program_header[i].p_type);
-        printf("    Offset: 0x%x\n", my_package->kernel_program_header[i].p_offset);
-        printf("    Size: %d bytes\n", my_package->kernel_program_header[i].p_filesz);
-        printf("    Virtual Address: 0x%x\n", my_package->kernel_program_header[i].p_vaddr);
-        printf("    Physical Address: 0x%x\n", my_package->kernel_program_header[i].p_paddr);
+    for (j = 0; j < my_package->kernel_elf_header->e_phnum; ++j) {
+        printf("  Segment %d:\n", j + 1);
+        printf("    Type: %d\n", my_package->kernel_program_header[j].p_type);
+        printf("    Offset: 0x%x\n", my_package->kernel_program_header[j].p_offset);
+        printf("    Virtual Address: 0x%x\n", my_package->kernel_program_header[j].p_vaddr);
+        printf("    Physical Address: 0x%x\n", my_package->kernel_program_header[j].p_paddr);
+        printf("    Size in file: %d bytes\n", my_package->kernel_program_header[j].p_filesz);
+        printf("    Size in memory: %d bytes\n", my_package->kernel_program_header[j].p_memsz);
+        printf("    Flags: 0x%x\n", my_package->kernel_program_header[j].p_flags);
+        printf("    Alignment: %d bytes\n", my_package->kernel_program_header[j].p_align);
         printf("\n");
     }
 

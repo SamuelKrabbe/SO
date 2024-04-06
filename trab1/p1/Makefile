@@ -38,9 +38,11 @@ LDOPTS = -nostartfiles -nostdlib -melf_i386
 
 # Makefile targets
 
-all: bootblock buildimage kernel samuelimage
+all: bootblock buildimage kernel image
 
-run: 
+samuelall: bootblock buildimage kernel imagesamuel
+
+compile: 
 	@$(CC) -std=c99 ./buildimage.c -o buildimage -Wall
 	@./buildimage
 
@@ -58,7 +60,7 @@ image: bootblock buildimage kernel
 	./buildimage.given --extended ./bootblock ./kernel
 
 # Build an image to put on the floppy
-samuelimage: bootblock buildimage kernel
+imagesamuel: bootblock buildimage kernel
 	./buildimage --extended ./bootblock ./kernel
 
 # Put the image on the usb stick (these two stages are independent, as both

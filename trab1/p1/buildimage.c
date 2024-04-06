@@ -18,6 +18,17 @@
 #define SECTOR_SIZE 512       /* floppy sector size in bytes */
 #define BOOTLOADER_SIG_OFFSET 0x1fe /* offset for boot loader signature */
 
+// PROGRAM HEADER TYPES
+#define PT_NULL     0
+#define PT_LOAD     1
+#define PT_DYNAMIC  2
+#define PT_INTERP   3
+#define PT_NOTE     4
+#define PT_SHLIB    5
+#define PT_PHDR     6
+#define PT_LOPROC   0x70000000
+#define PT_HIPROC   0x7fffffff
+
 
 // Define a struct to hold the package values
 typedef struct {
@@ -184,12 +195,40 @@ void build_image(Package **my_package) {
     record_kernel_sectors(my_package);
 }
 
+/* Find the corresponding string representation for header type */
+void getHeaderType() {
+    int k;
+
+    // Array to store string representations and numeric values of program header types
+    const char *program_header_types[] = {
+        "PT_NULL", "PT_LOAD", "PT_DYNAMIC", "PT_INTERP", "PT_NOTE", "PT_SHLIB", "PT_PHDR",
+        "PT_LOPROC", "PT_HIPROC"
+    };
+    int program_header_values[] = {
+        PT_NULL, PT_LOAD, PT_DYNAMIC, PT_INTERP, PT_NOTE, PT_SHLIB, PT_PHDR, PT_LOPROC, PT_HIPROC
+    };
+
+    int num_program_header_types = sizeof(program_header_values) / sizeof(program_header_values[0]);
+    
+    const char *type_str = NULL;
+    for (k = 0; k < num_program_header_types; ++k) {
+        if (my_package->boot_program_header[i].p_type == program_header_values[k]) {
+            type_str = program_header_types[k];
+            break;
+        }
+    }
+    if (type_str != NULL) {
+        printf("    Type: %s\n", type_str);
+    } else {
+        printf("    Type: Unknown\n");
+    }
+}
+
 
 /* Prints segment information for --extended option */
-void extended_opt(Package *my_package)
-{
+void extended_opt(Package *my_package) {
     int i, j;
-    
+
     // Calculate total size of the image file in bytes
     fseek(my_package->imagefile, 0, SEEK_END);
     long total_size = ftell(my_package->imagefile);
@@ -198,14 +237,15 @@ void extended_opt(Package *my_package)
     int total_sectors = (total_size + SECTOR_SIZE - 1) / SECTOR_SIZE;
 
     // Print number of disk sectors used by the image
+    printf("\n");
     printf("Number of disk sectors used by the image: %d\n", total_sectors);
     printf("\n");
 
     // Bootblock segment info
-    printf("Bootblock segment info:\n");
+    printf("0x%x: %s\n", my_package->boot_program_header[0].p_vaddr, BOOT_FILENAME);
     for (i = 0; i < my_package->boot_elf_header->e_phnum; ++i) {
         printf("  Segment %d:\n", i + 1);
-        printf("    Type: %d\n", my_package->boot_program_header[i].p_type);
+        getHeaderType();
         printf("    Offset: 0x%x\n", my_package->boot_program_header[i].p_offset);
         printf("    Virtual Address: 0x%x\n", my_package->boot_program_header[i].p_vaddr);
         printf("    Physical Address: 0x%x\n", my_package->boot_program_header[i].p_paddr);
@@ -218,12 +258,13 @@ void extended_opt(Package *my_package)
 
     // Print number of bootblock sectors
     printf("bootblock size in sectors: %d\n", my_package->num_bootblock_sectors);
+    printf("\n");
 
     // Print kernel segment info
-    printf("Kernel segment info:\n");
+    printf("0x%x: %s\n", my_package->kernel_program_header[0].p_vaddr, KERNEL_FILENAME);
     for (j = 0; j < my_package->kernel_elf_header->e_phnum; ++j) {
         printf("  Segment %d:\n", j + 1);
-        printf("    Type: %d\n", my_package->kernel_program_header[j].p_type);
+        getHeaderType();
         printf("    Offset: 0x%x\n", my_package->kernel_program_header[j].p_offset);
         printf("    Virtual Address: 0x%x\n", my_package->kernel_program_header[j].p_vaddr);
         printf("    Physical Address: 0x%x\n", my_package->kernel_program_header[j].p_paddr);
@@ -236,6 +277,7 @@ void extended_opt(Package *my_package)
 
     // Print number of kernel sectors
     printf("Kernel size in sectors: %d\n", my_package->num_kernel_sectors);
+    printf("\n");
 }
 
 /* MAIN */

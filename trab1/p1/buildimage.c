@@ -196,7 +196,7 @@ void build_image(Package **my_package) {
 }
 
 /* Find the corresponding string representation for header type */
-void getHeaderType() {
+void getHeaderType(Package *my_package, int current_hdr_index) {
     int k;
 
     // Array to store string representations and numeric values of program header types
@@ -212,7 +212,7 @@ void getHeaderType() {
     
     const char *type_str = NULL;
     for (k = 0; k < num_program_header_types; ++k) {
-        if (my_package->boot_program_header[i].p_type == program_header_values[k]) {
+        if (my_package->boot_program_header[current_hdr_index].p_type == program_header_values[k]) {
             type_str = program_header_types[k];
             break;
         }
@@ -245,7 +245,7 @@ void extended_opt(Package *my_package) {
     printf("0x%x: %s\n", my_package->boot_program_header[0].p_vaddr, BOOT_FILENAME);
     for (i = 0; i < my_package->boot_elf_header->e_phnum; ++i) {
         printf("  Segment %d:\n", i + 1);
-        getHeaderType();
+        getHeaderType(my_package, i);
         printf("    Offset: 0x%x\n", my_package->boot_program_header[i].p_offset);
         printf("    Virtual Address: 0x%x\n", my_package->boot_program_header[i].p_vaddr);
         printf("    Physical Address: 0x%x\n", my_package->boot_program_header[i].p_paddr);
@@ -264,7 +264,7 @@ void extended_opt(Package *my_package) {
     printf("0x%x: %s\n", my_package->kernel_program_header[0].p_vaddr, KERNEL_FILENAME);
     for (j = 0; j < my_package->kernel_elf_header->e_phnum; ++j) {
         printf("  Segment %d:\n", j + 1);
-        getHeaderType();
+        getHeaderType(my_package, j);
         printf("    Offset: 0x%x\n", my_package->kernel_program_header[j].p_offset);
         printf("    Virtual Address: 0x%x\n", my_package->kernel_program_header[j].p_vaddr);
         printf("    Physical Address: 0x%x\n", my_package->kernel_program_header[j].p_paddr);

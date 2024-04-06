@@ -249,8 +249,8 @@ void extended_opt(Package *my_package) {
         printf("    Offset: 0x%x\n", my_package->boot_program_header[i].p_offset);
         printf("    Virtual Address: 0x%x\n", my_package->boot_program_header[i].p_vaddr);
         printf("    Physical Address: 0x%x\n", my_package->boot_program_header[i].p_paddr);
-        printf("    Size in file: %d bytes\n", my_package->boot_program_header[i].p_filesz);
-        printf("    Size in memory: %d bytes\n", my_package->boot_program_header[i].p_memsz);
+        printf("    Size in file: 0x%x\n", my_package->boot_program_header[i].p_filesz);
+        printf("    Size in memory: 0x%x\n", my_package->boot_program_header[i].p_memsz);
         printf("    Flags: 0x%x\n", my_package->boot_program_header[i].p_flags);
         printf("    Alignment: %d bytes\n", my_package->boot_program_header[i].p_align);
         printf("\n");
@@ -268,8 +268,8 @@ void extended_opt(Package *my_package) {
         printf("    Offset: 0x%x\n", my_package->kernel_program_header[j].p_offset);
         printf("    Virtual Address: 0x%x\n", my_package->kernel_program_header[j].p_vaddr);
         printf("    Physical Address: 0x%x\n", my_package->kernel_program_header[j].p_paddr);
-        printf("    Size in file: %d bytes\n", my_package->kernel_program_header[j].p_filesz);
-        printf("    Size in memory: %d bytes\n", my_package->kernel_program_header[j].p_memsz);
+        printf("    Size in file: 0x%x\n", my_package->kernel_program_header[j].p_filesz);
+        printf("    Size in memory: 0x%x\n", my_package->kernel_program_header[j].p_memsz);
         printf("    Flags: 0x%x\n", my_package->kernel_program_header[j].p_flags);
         printf("    Alignment: %d bytes\n", my_package->kernel_program_header[j].p_align);
         printf("\n");

@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define IMAGE_FILE "./image"
+// #define IMAGE_FILE "./image"
 #define BOOT_FILENAME "bootblock"
 #define KERNEL_FILENAME "kernel"
 #define ARGS "[--extended] <bootblock> <executable-file> ..."

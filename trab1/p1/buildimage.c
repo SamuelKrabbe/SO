@@ -161,6 +161,7 @@ void count_kernel_sectors(Package **my_package) {
     (*my_package)->num_kernel_sectors = (kernel_size + SECTOR_SIZE - 1) / SECTOR_SIZE;
 }
 
+/* Counts the number of sectors in the bootblock */
 void count_bootblock_sectors(Package **my_package) {
     // Calculate the size of the bootblock in bytes
     unsigned int bootblock_size = (*my_package)->boot_program_header->p_filesz;

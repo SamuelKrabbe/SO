@@ -122,10 +122,17 @@ void write_bootblock(Package **my_package)
 
     // Read the bootblock from the bootfile
     fseek((*my_package)->bootfile, (*my_package)->boot_program_header->p_offset, SEEK_SET);
-    fread(bootblock, 1, (*my_package)->boot_program_header->p_filesz, (*my_package)->bootfile);
+    fread(bootblock, 1, (*my_package)->boot_elf_header->e_phentsize, (*my_package)->bootfile);
 
-    // Write the bootblock to the image file
-    fwrite(bootblock, 1, (*my_package)->boot_program_header->p_filesz, (*my_package)->imagefile);
+    // Write the first entry of bootblock_program_header to the imagefile
+    fwrite(bootblock, 1, (*my_package)->boot_elf_header->e_phentsize, (*my_package)->imagefile);
+
+    // Write the os_size (must be calculated later) into the second position to the imagefile
+    fwrite("0x0000", 6, sizeof(char), (*my_package)->imagefile);
+
+    // Read the bootblock from the bootfile
+    fseek((*my_package)->bootfile, (*my_package)->boot_program_header->p_offset + 1, SEEK_SET);
+    fread(bootblock, 1, (*my_package)->boot_elf_header->e_phentsize, (*my_package)->bootfile);
 
     // Free allocated memory
     free(bootblock);

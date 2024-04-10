@@ -42,7 +42,7 @@ LDOPTS = -nostartfiles -nostdlib -melf_i386
 
 all: bootblock buildimage kernel image
 
-samuel: bootblock buildimage kernel imagesamuel
+run: bootblock buildimage kernel myimage
 
 kernel: kernel.o
 	$(LD) $(LDOPTS) -Ttext $(KERNEL_ADDR) -o kernel $<
@@ -58,7 +58,7 @@ image: bootblock buildimage kernel
 	./buildimage.given --extended ./bootblock ./kernel
 
 # Build an image to put on the floppy
-imagesamuel: bootblock buildimage kernel
+myimage: bootblock buildimage kernel
 	./buildimage --extended ./bootblock ./kernel
 
 # Put the image on the usb stick (these two stages are independent, as both

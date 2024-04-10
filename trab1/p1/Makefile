@@ -40,7 +40,9 @@ LDOPTS = -nostartfiles -nostdlib -melf_i386
 
 # all: bootblock buildimage kernel image
 
-all: bootblock buildimage kernel imagesamuel
+all: bootblock buildimage kernel image
+
+samuelall: bootblock buildimage kernel imagesamuel
 
 kernel: kernel.o
 	$(LD) $(LDOPTS) -Ttext $(KERNEL_ADDR) -o kernel $<

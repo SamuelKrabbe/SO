@@ -9,6 +9,6 @@ mouse: enabled=0
 cpu: count=1, ips=1000000, reset_on_triple_fault=1
 vga_update_interval: 150000
 i440fxsupport: enabled=1
-display_library: x
+display_library: sdl
 log: /dev/null
 magic_break: enabled = 1

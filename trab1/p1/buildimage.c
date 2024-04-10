@@ -108,18 +108,12 @@ void write_bootblock(Package **my_package) {
         exit(EXIT_FAILURE);
     }
 
-    // Read the first 2 bytes of bootfile to bootblock
+    // Read bootfile to bootblock
     fseek((*my_package)->bootfile, (*my_package)->boot_program_header->p_offset, SEEK_SET);
 
-    // Read rest of bootfile to bootblock
+    // Read and write bootfile to image
     fread(bootblock, (*my_package)->boot_program_header->p_filesz, 1, (*my_package)->bootfile);
-
-    // Write rest of bootblock to the image
     fwrite(bootblock, (*my_package)->boot_program_header->p_filesz, 1, (*my_package)->imagefile);
-
-    // Write os_size into 2nd position of image
-    fseek((*my_package)->imagefile, 2, SEEK_SET);
-    fwrite(&((*my_package)->num_kernel_sectors), 2, 1, (*my_package)->imagefile);
 
     // Write padding to the image
     int bootblock_padding = (SECTOR_SIZE - 2) - (*my_package)->boot_program_header->p_filesz;
@@ -135,7 +129,7 @@ void write_bootblock(Package **my_package) {
     }
 
     // Write the boot signature (aa55) to the last two bytes
-    unsigned short boot_signature = 0x55aa;
+    unsigned short boot_signature = 0xaa55;
     fwrite(&boot_signature, sizeof(unsigned short), 1, (*my_package)->imagefile);
 
     free(bootblock);
@@ -144,7 +138,7 @@ void write_bootblock(Package **my_package) {
 /* Writes the kernel to the image file */
 void write_kernel(Package **my_package) {
 
-    int i, kernel_padding;
+    int i, kernel_padding, last_segment_size, last_sector_padding;
     Elf32_Phdr current_header;
     Elf32_Phdr next_header;
 
@@ -156,6 +150,15 @@ void write_kernel(Package **my_package) {
 
         // Calculate kernel padding
         kernel_padding = next_header.p_offset - (current_header.p_offset + current_header.p_filesz);
+        
+        if (i == ((*my_package)->kernel_elf_header->e_phnum - 1)) {
+            last_segment_size = (*my_package)->kernel_program_header[i].p_filesz;
+            last_sector_padding = SECTOR_SIZE - (last_segment_size % SECTOR_SIZE);
+            if (last_sector_padding == SECTOR_SIZE) 
+                kernel_padding = 0;
+            else 
+                kernel_padding = last_sector_padding;
+        }
 
         // Allocate memory for the segment
         unsigned char *segment = (unsigned char *)malloc((*my_package)->kernel_program_header[i].p_memsz);
@@ -166,10 +169,10 @@ void write_kernel(Package **my_package) {
 
         // Read segment from kernelfile
         fseek((*my_package)->kernelfile, (*my_package)->kernel_program_header[i].p_offset, SEEK_SET);
-        fread(segment, (*my_package)->kernel_program_header[i].p_memsz, 1, (*my_package)->kernelfile);
+        fread(segment, (*my_package)->kernel_program_header[i].p_filesz, 1, (*my_package)->kernelfile);
 
         // Write segment to the image
-        fwrite(segment, (*my_package)->kernel_program_header[i].p_memsz, 1, (*my_package)->imagefile);
+        fwrite(segment, (*my_package)->kernel_program_header[i].p_filesz, 1, (*my_package)->imagefile);
 
         // Write kernel padding to the image
         if (kernel_padding > 0) {
@@ -190,17 +193,25 @@ void write_kernel(Package **my_package) {
 /* Counts the number of sectors in the kernel */
 void count_kernel_sectors(Package **my_package) {   
 
-    unsigned int kernel_size = (*my_package)->kernel_program_header->p_filesz;
+    int i;
+    unsigned int total_kernel_size = 0;
+
+    // Iterate through all program headers and sum up the sizes of all segments
+    for (i = 0; i < (*my_package)->kernel_elf_header->e_phnum; i++) {
+        total_kernel_size += (*my_package)->kernel_program_header[i].p_filesz;
+    }
 
     // Calculate the number of sectors required to store the kernel
-    (*my_package)->num_kernel_sectors = (unsigned short) (kernel_size + SECTOR_SIZE - 1) / SECTOR_SIZE;
+    (*my_package)->num_kernel_sectors = (unsigned short)((total_kernel_size + SECTOR_SIZE - 1) / SECTOR_SIZE);
 }
+
 
 /* Records the number of sectors in the kernel */
 void record_kernel_sectors(Package **my_package) {
 
-    // Write the number of sectors to the image file
-    fwrite((&(*my_package)->num_kernel_sectors), sizeof(int), 1, (*my_package)->imagefile);
+    // Write os_size into 2nd position of image
+    fseek((*my_package)->imagefile, sizeof(unsigned short), SEEK_SET);
+    fwrite(&((*my_package)->num_kernel_sectors), 2, 1, (*my_package)->imagefile);
 }
 
 // Build image file
@@ -228,7 +239,7 @@ void build_image(Package **my_package) {
 /* Prints segment information for --extended option */
 void extended_opt(Package *my_package) {
 
-    int bootblock_padding, kernel_padding;
+    int bootblock_padding, kernel_padding, last_segment_size, last_sector_padding;
     Elf32_Phdr current_header;
     Elf32_Phdr next_header;
     int i, j;
@@ -236,7 +247,7 @@ void extended_opt(Package *my_package) {
     // Bootblock segment info
     printf("0x%04x: ./%s\n", my_package->boot_program_header[0].p_vaddr, BOOT_FILENAME);
     for (i = 0; i < my_package->boot_elf_header->e_phnum; ++i) {
-        bootblock_padding = SECTOR_SIZE - (*my_package)->boot_program_header->p_filesz;
+        bootblock_padding = SECTOR_SIZE - my_package->boot_program_header->p_filesz;
 
         printf("  Segment %d:\n", i);
         printf("    offset: 0x%04x\n", my_package->boot_program_header[i].p_offset);
@@ -251,23 +262,32 @@ void extended_opt(Package *my_package) {
     // Print kernel segment info
     printf("0x%04x: ./%s\n", my_package->kernel_program_header[0].p_vaddr, KERNEL_FILENAME);
     for (j = 0; j < my_package->kernel_elf_header->e_phnum; ++j) {
-        current_header = (*my_package)->kernel_program_header[i];
-        next_header = (*my_package)->kernel_program_header[i + 1];
+        current_header = my_package->kernel_program_header[j];
+        next_header = my_package->kernel_program_header[j + 1];
 
         kernel_padding = next_header.p_offset - (current_header.p_offset + current_header.p_filesz);
+        if (j == (my_package->kernel_elf_header->e_phnum - 1)) {
+            last_segment_size = my_package->kernel_program_header[j].p_filesz;
+            last_sector_padding = SECTOR_SIZE - (last_segment_size % SECTOR_SIZE);
+            if (last_sector_padding == SECTOR_SIZE) 
+                kernel_padding = 0;
+            else 
+                kernel_padding = last_sector_padding;
+        }
+        kernel_padding += my_package->boot_program_header[i].p_filesz + bootblock_padding + my_package->kernel_program_header[j].p_filesz;
 
         printf("  Segment %d:\n", j);
         printf("    offset: 0x%04x\n", my_package->kernel_program_header[j].p_offset);
         printf("    vaddr: 0x%04x\n", my_package->kernel_program_header[j].p_vaddr);
         printf("    filesz: 0x%04x\n", my_package->kernel_program_header[j].p_filesz);
         printf("    memsz: 0x%04x\n", my_package->kernel_program_header[j].p_memsz);
-        printf("    writing 0x%04x bytes\n", my_package->kernel_program_header[i].p_memsz);
-        printf("    padding uo to 0x%04x\n", my_package->kernel_program_header[i].p_filesz + kernel_padding);
+        printf("    writing 0x%04x bytes\n", my_package->kernel_program_header[j].p_memsz);
+        printf("    padding uo to 0x%04x\n", kernel_padding);
         printf("\n");
     }
 
     // Print number of kernel sectors
-    printf("Kernel size in sectors: %d\n", my_package->num_kernel_sectors);
+    printf("os_size: %d\n", my_package->num_kernel_sectors);
     printf("\n");
 }
 

@@ -1,4 +1,4 @@
-/* Author(s): Samuel de Oliveira Krabbe
+/* Author(s): Samuel de Oliveira Krabbe e Leonardo de Moraes Perin
  * Creates operating system image suitable for placement on a boot disk
 */
 
@@ -32,7 +32,7 @@ typedef struct {
 } Package;
 
 
-// Function to read ELF header from bootblock
+/* Reads elf header from bootblock */
 void read_bootblock_ehdr(Package **my_package) {
 
     // Allocate memory for the ELF header
@@ -50,7 +50,7 @@ void read_bootblock_ehdr(Package **my_package) {
     }
 }
 
-// Function to read ELF header from kernel
+/* Reads elf header from kernel */
 void read_kernel_ehdr(Package **my_package) {
 
     // Allocate memory for the ELF header
@@ -68,6 +68,7 @@ void read_kernel_ehdr(Package **my_package) {
     }
 }
 
+/* Reads program header table from bootblock */
 void read_bootblock_phdr(Package **my_package) {
 
     // Allocate memory for the ELF header
@@ -83,6 +84,7 @@ void read_bootblock_phdr(Package **my_package) {
     fread((*my_package)->boot_program_header, (*my_package)->boot_elf_header->e_phentsize, (*my_package)->boot_elf_header->e_phnum, (*my_package)->bootfile);
 }
 
+/* Reads program header table from kernel */
 void read_kernel_phdr(Package **my_package) {
 
     // Allocate memory for the ELF header
@@ -98,7 +100,7 @@ void read_kernel_phdr(Package **my_package) {
     fread((*my_package)->kernel_program_header, (*my_package)->kernel_elf_header->e_phentsize, (*my_package)->kernel_elf_header->e_phnum, (*my_package)->kernelfile);
 }
 
-/* Writes the bootblock to the image file */
+/* Writes the bootblock to image */
 void write_bootblock(Package **my_package) {
 
     // Allocate memory for bootblock
@@ -135,7 +137,7 @@ void write_bootblock(Package **my_package) {
     free(bootblock);
 }
 
-/* Writes the kernel to the image file */
+/* Writes the kernel to image */
 void write_kernel(Package **my_package) {
 
     int i, kernel_padding, last_segment_size, last_sector_padding;
@@ -206,7 +208,7 @@ void count_kernel_sectors(Package **my_package) {
 }
 
 
-/* Records the number of sectors in the kernel */
+/* Records the number of sectors in the kernel to 2nd position in image */
 void record_kernel_sectors(Package **my_package) {
 
     // Write os_size into 2nd position of image
@@ -214,24 +216,24 @@ void record_kernel_sectors(Package **my_package) {
     fwrite(&((*my_package)->num_kernel_sectors), 2, 1, (*my_package)->imagefile);
 }
 
-// Build image file
+// Builds image
 void build_image(Package **my_package) {
 
     if ((*my_package)->imagefile == NULL) {
         (*my_package)->imagefile = fopen("image", "wb");
         if ((*my_package)->imagefile == NULL) {
-            perror("Error opening image file");
+            perror("Error opening imagefile");
             exit(EXIT_FAILURE);
         }
     }
 
-    // Write bootblock to the image file
+    // Write bootblock to image
     write_bootblock(my_package);
 
-    // Write kernel to the image file
+    // Write kernel to image
     write_kernel(my_package);
 
-    // Record number of kernel sectors in the image file
+    // Record number of kernel sectors in image
     record_kernel_sectors(my_package);
 }
 
@@ -286,7 +288,7 @@ void extended_opt(Package *my_package) {
         printf("\n");
     }
 
-    // Print number of kernel sectors
+    // Print os_size
     printf("os_size: %d\n", my_package->num_kernel_sectors);
     printf("\n");
 }
@@ -301,12 +303,14 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
+    // Opens bootfile
     my_package->bootfile = fopen(BOOT_FILENAME, "rb");
     if (my_package->bootfile == NULL) {
         printf("Error opening %s\n", BOOT_FILENAME);
         exit(EXIT_FAILURE);
     }
 
+    // Opens kernelfile
     my_package->kernelfile = fopen(KERNEL_FILENAME, "rb");
     if (my_package->kernelfile == NULL) {
         printf("Error opening %s\n", KERNEL_FILENAME);
@@ -324,7 +328,7 @@ int main(int argc, char **argv)
     /* Counts the number of sectors in kernelfile */
     count_kernel_sectors(&my_package);
 
-	/* build image file */
+	/* builds image*/
     build_image(&my_package);
 
 	/* check for --extended option */
@@ -332,19 +336,19 @@ int main(int argc, char **argv)
         if (!strncmp(argv[1], "--extended", 11)) {
             extended_opt(my_package);
         } else {
-            // Handle case where the argument is not "--extended"
+            // Case where the argument is not "--extended"
             printf("\n");
             printf("Unknown option. Usage: ./program --extended\n");
             printf("\n");
         }
     } else {
-        // Handle case where no command line argument is provided
+        // Case where no command line argument is provided
         printf("\n");
         printf("Usage: %s\n", ARGS);
         printf("\n");
     }
 	
-	// Cleaning up
+	// Cleaning pointers and closing files
     free(my_package->boot_elf_header);
     free(my_package->kernel_elf_header);
     free(my_package->boot_program_header);

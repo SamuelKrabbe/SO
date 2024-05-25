@@ -1,12 +1,14 @@
 #ifndef THREADU_H
 #define THREADU_H
 
+#include "thread.h"
+
 typedef enum {
     FALSE, TRUE
 } bool_t;
 
 typedef struct thr {
-	void 	*tcb;
+	tcb_t *tcb;
 } thread_t;
 
 int thread_create(thread_t *thread, void *(*start_routine)(void *), void *arg);

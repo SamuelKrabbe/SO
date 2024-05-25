@@ -7,7 +7,7 @@
 void *f1(void *p)
 {
 	int i;
-	int *one = (int *)p;
+	int *one = (int *)p; // 0 || 1 || 2 || 3 || 4 || 5
 	
 	for (i = 0; i < 3; i++) {
 		printf("f1 will sleep! %d\n", *one);

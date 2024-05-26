@@ -7,15 +7,17 @@
 void *f1(void *p)
 {
 	int i;
-	int *one = (int *)p; // 0 || 1 || 2 || 3 || 4 || 5
+	int *one = (int *)p;
 	
 	for (i = 0; i < 3; i++) {
+		printf("i = %d\n", i);
 		printf("f1 will sleep! %d\n", *one);
 		sleep(1);
 		printf("f1 will yield!\n");
 		thread_yield();
 	}
 	thread_exit(*one);
+	printf("f1\n");
 }
 
 int main()

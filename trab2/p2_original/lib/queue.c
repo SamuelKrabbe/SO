@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <thread.h>
 #include <queue.h>
 #include <stdio.h>
 
@@ -17,6 +18,13 @@ node_t *dequeue(node_t **queue) {
 }
 
 void enqueue(node_t **queue, node_t *item) {
+  char *status[] = {"FIRST_TIME", "READY", "BLOCKED", "EXITED"};
+
+  printf("enqueue\n");
+  
+  tcb_t *tcb = (tcb_t *)(item->thread);
+  printf("Thread ID: %d, Status: %s, CPU Time: %llu\n", tcb->tid, status[tcb->thread_status], (unsigned long long)tcb->cpu_time);
+  
   item->next = NULL;
   if (*queue == NULL) {
     *queue = item;

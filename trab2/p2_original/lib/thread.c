@@ -19,6 +19,7 @@ void print_queue(node_t *queue) {
         return;
     }
 
+    // printf("Current running:\n Thread ID: %d, Status: %s, CPU Time: %llu\n", current_running->tid, status[current_running->thread_status], (unsigned long long)current_running->cpu_time);
     printf("Ready queue:\n");
     node_t *current = queue;
     while (current != NULL) {
@@ -90,10 +91,9 @@ int thread_create(thread_t *thread, void *(*start_routine)(void *), void *arg) {
 }
 
 int thread_yield() {
-	print_queue(ready_queue);
+	// print_queue(ready_queue);
     // Add the current thread to the ready queue if it's still ready
     if (current_running->thread_status == READY) {
-		printf("enqueue\n");
         node_t *node = (node_t *)malloc(sizeof(node_t));
         node->thread = current_running;
         enqueue(&ready_queue, node);
@@ -131,6 +131,7 @@ void thread_exit(int status) {
 }
 
 void scheduler() {
+    char *status[] = {"FIRST_TIME", "READY", "BLOCKED", "EXITED"};
     if (is_empty(ready_queue)) {
         printf("No more threads to schedule.\n");
         exit_handler();
@@ -141,6 +142,7 @@ void scheduler() {
     node_t *next_node = dequeue(&ready_queue);
     tcb_t *next_thread = (tcb_t *)(next_node->thread);
     free(next_node);
+    printf("Next thread:\n Thread ID: %d, Status: %s, CPU Time: %llu\n", next_thread->tid, status[next_thread->thread_status], (unsigned long long)next_thread->cpu_time);
 
     current_running = next_thread;
 

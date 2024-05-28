@@ -10,22 +10,15 @@ tcb_t *current_running;
 
 int tid_global = 0;
 
-// Function to print the ready queue
-void print_queue(node_t *queue) {
-	char *status[] = {"FIRST_TIME", "READY", "BLOCKED", "EXITED"};
-
-    if (queue == NULL) {
-        printf("Ready queue is empty.\n");
-        return;
-    }
-
-    // printf("Current running:\n Thread ID: %d, Status: %s, CPU Time: %llu\n", current_running->tid, status[current_running->thread_status], (unsigned long long)current_running->cpu_time);
-    printf("Ready queue:\n");
-    node_t *current = queue;
-    while (current != NULL) {
-        tcb_t *tcb = (tcb_t *)(current->thread);
-        printf("Thread ID: %d, Status: %s, CPU Time: %llu\n", tcb->tid, status[tcb->thread_status], (unsigned long long)tcb->cpu_time);
-        current = current->next;
+void debug_print_current_running() {
+    char *status[] = {"FIRST_TIME", "READY", "BLOCKED", "EXITED"};
+    if (current_running != NULL) {
+        printf("Current Running Thread ID: %d, Status: %s, CPU Time: %lu\n",
+               current_running->tid,
+               status[current_running->thread_status],
+               current_running->cpu_time);
+    } else {
+        printf("No current running thread.\n");
     }
 }
 
@@ -131,7 +124,9 @@ void thread_exit(int status) {
 }
 
 void scheduler() {
-    char *status[] = {"FIRST_TIME", "READY", "BLOCKED", "EXITED"};
+    printf("Before scheduling:\n");
+    debug_print_current_running();
+
     if (is_empty(ready_queue)) {
         printf("No more threads to schedule.\n");
         exit_handler();
@@ -142,14 +137,16 @@ void scheduler() {
     node_t *next_node = dequeue(&ready_queue);
     tcb_t *next_thread = (tcb_t *)(next_node->thread);
     free(next_node);
-    printf("Next thread:\n Thread ID: %d, Status: %s, CPU Time: %llu\n", next_thread->tid, status[next_thread->thread_status], (unsigned long long)next_thread->cpu_time);
+    // printf("Next thread:\n Thread ID: %d, Status: %s, CPU Time: %llu\n", next_thread->tid, status[next_thread->thread_status], (unsigned long long)next_thread->cpu_time);
 
     current_running = next_thread;
 
     // If the thread is running for the first time, call its start routine
     if (next_thread->thread_status == FIRST_TIME) {
         next_thread->thread_status = READY;
-        next_thread->start_routine(next_thread->arg);
+        next_thread->start_routine(next_thread->arg); //shit's happening here...
+        printf("After scheduling:\n");
+        debug_print_current_running();
         exit_handler();  // If the start routine returns, exit the thread
     }
 }

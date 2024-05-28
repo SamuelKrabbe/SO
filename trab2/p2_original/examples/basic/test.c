@@ -10,10 +10,12 @@ void *f1(void *p)
 	int *one = (int *)p;
 	
 	for (i = 0; i < 3; i++) {
-		printf("i = %d\n", i);
-		printf("f1 will sleep! %d\n", *one);
+		printf("\n");
+		printf("iteration %d\n", i);
+		printf("Thread with param %d will sleep!\n", *one);
 		sleep(1);
-		printf("f1 will yield!\n");
+		printf("Thread with param %d will yield!\n", *one);
+		printf("\n");
 		thread_yield();
 	}
 	thread_exit(*one);
